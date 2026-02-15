@@ -1,0 +1,8 @@
+{
+  "name": "娄星红娘 - 公益婚恋平台",
+  "description": "基于 AI 智能匹配的政府背书公益婚恋服务平台，专注于娄底市适龄青年的精准匹配与线下脱单。",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
