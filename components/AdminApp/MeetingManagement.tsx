@@ -199,8 +199,8 @@ const MeetingManagement: React.FC = () => {
 
               <div className="flex-1 p-8 flex flex-col justify-center">
                 {activeTab === 'pending' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <div className="space-y-4">
+                  <div className="flex flex-col md:flex-row items-center gap-10">
+                    <div className="flex-1 space-y-4 w-full">
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                           <span className="w-1 h-3 bg-indigo-500 rounded-full"></span>
@@ -232,7 +232,11 @@ const MeetingManagement: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    {/* 分割线 */}
+                    <div className="hidden md:block w-px h-32 bg-slate-100"></div>
+                    <div className="md:hidden w-full h-px bg-slate-50"></div>
+
+                    <div className="flex-1 space-y-4 w-full">
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                           <span className="w-1 h-3 bg-rose-500 rounded-full"></span>

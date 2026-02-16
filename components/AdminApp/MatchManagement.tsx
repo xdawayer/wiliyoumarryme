@@ -18,8 +18,8 @@ const MatchManagement: React.FC = () => {
       userA: { name: `男嘉宾${i + 1}`, age: 24 + (i % 12), edu: ['本科', '硕士', '博士', '大专'][i % 4], job: ['公务员', '教师', 'IT工程师', '医生'][i % 4], lifestyle: '早起型', personality: '外向幽默' },
       userB: { name: `女嘉宾${i + 1}`, age: 22 + (i % 10), edu: ['硕士', '本科', '博士', '大专'][i % 4], job: ['教师', '设计师', '公务员', '医生'][i % 4], lifestyle: '早起型', personality: '温柔细腻' },
       reason: i % 2 === 0 
-        ? "双方均为早起型作息，且对家庭规划有共识。对方温柔细腻的性格能很好地包容您的幽默风趣。" 
-        : "性格互补，且地理位置接近。双方在职业规划和未来居住意向上表现出高度一致。",
+        ? "1. 核心契合：双方均为早起型作息，且对家庭规划有共识。\n2. 性格互补：对方温柔细腻的性格能很好地包容您的幽默风趣。\n3. 地理优势：同城生活圈交集度高。" 
+        : "1. 职业共鸣：性格互补，且地理位置接近。\n2. 意向一致：双方在职业规划和未来居住意向上表现出高度一致。\n3. 风险可控：家庭背景相似，沟通无障碍。",
       details: {
         personality: { score: 12 + Math.floor(Math.random() * 3), max: 15, reason: "性格维度匹配良好，具备长久相处的性格基础。" },
         lifestyle: { score: 10 + Math.floor(Math.random() * 2), max: 12, reason: "生活方式契合度极高，尤其是作息时间。 " },
@@ -54,7 +54,7 @@ const MatchManagement: React.FC = () => {
         return (
           <button 
             onClick={() => handlePush(pair.id)}
-            className="px-8 py-3 bg-indigo-600 text-white text-xs font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all flex items-center gap-2"
+            className="w-full py-3 bg-indigo-600 text-white text-[10px] font-black rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2"
           >
             <i className="fas fa-paper-plane"></i>
             确认并推送
@@ -62,20 +62,24 @@ const MatchManagement: React.FC = () => {
         );
       case 'pushed':
         return (
-          <span className="text-[10px] font-black text-amber-500 animate-pulse tracking-widest"><i className="fas fa-spinner fa-spin mr-1"></i> 推送成功，等待确认</span>
+          <div className="w-full py-3 bg-amber-50 text-amber-500 rounded-xl text-[9px] font-black flex items-center justify-center gap-1.5 border border-amber-100">
+             <i className="fas fa-spinner fa-spin"></i> 等待确认
+          </div>
         );
       case 'b_confirmed':
         return (
           <button 
             onClick={() => setRecommendations(prev => prev.map(p => p.id === pair.id ? { ...p, status: 'both_confirmed' } : p))}
-            className="px-6 py-2 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-all"
+            className="w-full py-3 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-all"
           >
             手动核实通过
           </button>
         );
       case 'both_confirmed':
         return (
-          <span className="px-6 py-2 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-xl border border-emerald-100"><i className="fas fa-check-double mr-1"></i> 已达成意向</span>
+          <div className="w-full py-3 bg-emerald-50 text-emerald-600 text-[9px] font-black rounded-xl border border-emerald-100 flex items-center justify-center gap-1.5">
+             <i className="fas fa-check-double"></i> 已达成意向
+          </div>
         );
       default:
         return null;
@@ -90,7 +94,6 @@ const MatchManagement: React.FC = () => {
           <p className="text-sm text-slate-500">预览由算法生成的潜在匹配对象并管理推送流程</p>
         </div>
         
-        {/* 每日推荐额度选择器 */}
         <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3">推荐额度</span>
           {[10, 20, 50, 100].map(q => (
@@ -146,20 +149,28 @@ const MatchManagement: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex-[1.5] p-6 flex flex-col justify-between">
-              <div className="space-y-2">
+            <div className="flex-[2] p-8 flex items-center gap-8 bg-white">
+              {/* 文字描述居左，支持换行 */}
+              <div className="flex-1 space-y-3">
                 <div className="flex items-center gap-2">
                   <i className="fas fa-magic text-rose-500 text-[10px]"></i>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">AI 算法溯源</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">AI 算法溯源报告</p>
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed italic border-l-2 border-indigo-100 pl-4">
-                  "{pair.reason}"
+                <p className="text-[11px] text-slate-600 leading-relaxed font-medium italic border-l-4 border-indigo-100 pl-5 whitespace-pre-wrap">
+                  {pair.reason}
                 </p>
               </div>
               
-              <div className="mt-6 flex items-center justify-between">
-                <button onClick={() => setSelectedPair(pair)} className="text-[10px] font-bold text-indigo-600 hover:underline">查看多维契合报告</button>
+              {/* 操作按钮居右，垂直排列 */}
+              <div className="flex flex-col gap-3 min-w-[150px] shrink-0">
                 {getButtonContent(pair)}
+                <button 
+                  onClick={() => setSelectedPair(pair)} 
+                  className="w-full py-3 bg-slate-50 text-slate-500 rounded-xl text-[10px] font-black hover:bg-slate-100 hover:text-indigo-600 transition-all border border-transparent hover:border-indigo-100 flex items-center justify-center gap-2"
+                >
+                  <i className="fas fa-chart-pie"></i>
+                  多维契合报告
+                </button>
               </div>
             </div>
           </div>
