@@ -16,16 +16,31 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ user, profile }) => {
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>(profile?.photos || []);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Selection states for limits validation (3.2.4)
+  // Selection states for limits validation
   const [selectedHobbies, setSelectedHobbies] = useState<string[]>(profile?.hobbies || []);
   const [selectedPersonality, setSelectedPersonality] = useState<string[]>(profile?.personality_tags || []);
   
-  // Preference states for strictness warning (3.3.3)
+  // Preference states
   const [prefIncome, setPrefIncome] = useState(user.mate_preferences?.income || '不限');
   const [prefEdu, setPrefEdu] = useState(user.mate_preferences?.education || '不限');
   const [prefMarriage, setPrefMarriage] = useState<string[]>(user.mate_preferences?.marriage_status || ['不限']);
 
-  // Strictness logic: If income is very high, education is very high, or marriage status is restricted
+  // Priority Ranking State
+  const PRIORITY_OPTIONS = ['年龄', '身高', '学历', '月收入', '居住地', '婚姻状况', '生育意向', '家庭背景', '生活方式', '性格契合'];
+  const [priorities, setPriorities] = useState<(string | null)[]>(Array(10).fill(null));
+
+  const handlePriorityChange = (index: number, value: string) => {
+    const newPriorities = [...priorities];
+    newPriorities[index] = value === "" ? null : value;
+    setPriorities(newPriorities);
+  };
+
+  const getAvailableOptions = (currentIndex: number) => {
+    const selectedValues = priorities.filter((val, idx) => val !== null && idx !== currentIndex);
+    return PRIORITY_OPTIONS.filter(opt => !selectedValues.includes(opt));
+  };
+
+  // Strictness logic
   const isTooStrict = (prefIncome === '15000 以上' || prefIncome === '8000 以上') && 
                       (prefEdu === '硕士及以上' || prefEdu === '本科及以上') &&
                       (prefMarriage.includes('仅限未婚'));
@@ -111,7 +126,6 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ user, profile }) => {
         </div>
       </div>
 
-      {/* Profile Completeness */}
       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
         <div className="flex justify-between items-center mb-2">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">当前资料完善度</span>
@@ -125,7 +139,6 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ user, profile }) => {
         </div>
       </div>
 
-      {/* Sticky Navigation Tabs - Fixed for no overlap */}
       <div className="sticky top-[-1.1rem] z-[40] -mx-4 px-4 py-2 bg-slate-50/95 backdrop-blur-md border-b border-slate-100/50">
         <div className="flex p-1 bg-white rounded-2xl shadow-sm border border-slate-200">
           {tabs.map((tab) => (
@@ -146,48 +159,30 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ user, profile }) => {
 
       <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-8 min-h-[400px]">
         
-        {/* TAB 1: BASIC REQUIRED (3.2.2) */}
+        {/* TAB 1: BASIC REQUIRED */}
         {activeTab === 'basic' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
             {renderSectionTitle("形象照片", "建议上传真实生活照，最多3张")}
-            
             <div className="grid grid-cols-3 gap-3">
               {selectedPhotos.map((url, idx) => (
                 <div key={idx} className="aspect-[3/4] rounded-2xl bg-slate-100 overflow-hidden relative shadow-sm border border-slate-100 group">
                   <img src={url} className="w-full h-full object-cover" alt={`User ${idx + 1}`} />
-                  <button 
-                    onClick={() => removePhoto(idx)}
-                    className="absolute top-1.5 right-1.5 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-[10px] shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
+                  <button onClick={() => removePhoto(idx)} className="absolute top-1.5 right-1.5 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-[10px] shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
                     <i className="fas fa-times"></i>
                   </button>
                 </div>
               ))}
-              
               {selectedPhotos.length < 3 && (
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="aspect-[3/4] rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95"
-                >
+                <button onClick={() => fileInputRef.current?.click()} className="aspect-[3/4] rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95">
                   <div className="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center text-rose-500">
                     <i className="fas fa-camera"></i>
                   </div>
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">添加照片</span>
                 </button>
               )}
-              
-              <input 
-                ref={fileInputRef}
-                type="file" 
-                accept="image/*" 
-                multiple 
-                className="hidden" 
-                onChange={handlePhotoUpload} 
-              />
+              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
             </div>
-
             <div className="h-px bg-slate-50 my-2"></div>
-
             {renderSectionTitle("核心基础", "身份证自动解析信息不可修改")}
             <div className="grid grid-cols-2 gap-4">
               {renderField("姓名", <div className="p-3 rounded-xl bg-slate-50 text-slate-400 text-sm font-bold border border-slate-100">{user.name}</div>)}
@@ -208,7 +203,7 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ user, profile }) => {
           </div>
         )}
 
-        {/* TAB 2: ADVANCED IMPORTANT (3.2.3) */}
+        {/* TAB 2: ADVANCED IMPORTANT */}
         {activeTab === 'advanced' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
             {renderSectionTitle("经济与规划", "核心匹配权重的经济指标")}
@@ -252,7 +247,7 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ user, profile }) => {
           </div>
         )}
 
-        {/* TAB 3: SOFT PREFERENCES (3.2.4) */}
+        {/* TAB 3: SOFT PREFERENCES */}
         {activeTab === 'soft' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
             {renderSectionTitle("软性偏好", "让 AI 更懂你的生活细节")}
@@ -283,49 +278,86 @@ const ProfileEdit: React.FC<ProfileEditProps> = ({ user, profile }) => {
           </div>
         )}
 
-        {/* TAB 4: MATE PREFERENCES (3.3) */}
+        {/* TAB 4: MATE PREFERENCES */}
         {activeTab === 'prefs' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-            {renderSectionTitle("择偶硬性条件", "不满足条件的候选人将被直接排除")}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {renderField("年龄范围 (18-60岁)", 
-                <div className="flex items-center gap-2">
-                  <input type="number" min="18" max="60" defaultValue={user.mate_preferences?.age_range[0]} className="flex-1 p-3 rounded-xl bg-slate-50 text-center text-sm font-bold border-none" />
-                  <span className="text-slate-300 font-bold">至</span>
-                  <input type="number" min="18" max="60" defaultValue={user.mate_preferences?.age_range[1]} className="flex-1 p-3 rounded-xl bg-slate-50 text-center text-sm font-bold border-none" />
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+            
+            {/* 择偶硬性条件模块 - 移动至上方 */}
+            <div className="space-y-6">
+              {renderSectionTitle("择偶硬性条件", "不满足条件的候选人将被直接排除")}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {renderField("年龄范围 (18-60岁)", 
+                  <div className="flex items-center gap-2">
+                    <input type="number" min="18" max="60" defaultValue={user.mate_preferences?.age_range[0]} className="flex-1 p-3 rounded-xl bg-slate-50 text-center text-sm font-bold border-none" />
+                    <span className="text-slate-300 font-bold">至</span>
+                    <input type="number" min="18" max="60" defaultValue={user.mate_preferences?.age_range[1]} className="flex-1 p-3 rounded-xl bg-slate-50 text-center text-sm font-bold border-none" />
+                  </div>
+                )}
+                {renderField("身高范围 (140-210cm)", 
+                  <div className="flex items-center gap-2">
+                    <input type="number" min="140" max="210" defaultValue={user.mate_preferences?.height_range[0]} className="flex-1 p-3 rounded-xl bg-slate-50 text-center text-sm font-bold border-none" />
+                    <span className="text-slate-300 font-bold">至</span>
+                    <input type="number" min="140" max="210" defaultValue={user.mate_preferences?.height_range[1]} className="flex-1 p-3 rounded-xl bg-slate-50 text-center text-sm font-bold border-none" />
+                  </div>
+                )}
+              </div>
+              {renderField("学历要求", <select value={prefEdu} onChange={(e) => setPrefEdu(e.target.value)} className="w-full p-3 rounded-xl bg-slate-50 border-none text-sm font-bold"><option>不限</option><option>大专及以上</option><option>本科及以上</option><option>硕士及以上</option></select>)}
+              {renderField("地域要求 (可多选)", 
+                <div className="flex flex-wrap gap-2">
+                  {['不限', '本市', '本省', '自定义'].map(tag => (
+                    <button key={tag} className={`px-4 py-2 rounded-full text-[10px] font-bold border transition-all ${user.mate_preferences?.location.includes(tag) ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-100 text-slate-400'}`}>{tag}</button>
+                  ))}
                 </div>
               )}
-              {renderField("身高范围 (140-210cm)", 
-                <div className="flex items-center gap-2">
-                  <input type="number" min="140" max="210" defaultValue={user.mate_preferences?.height_range[0]} className="flex-1 p-3 rounded-xl bg-slate-50 text-center text-sm font-bold border-none" />
-                  <span className="text-slate-300 font-bold">至</span>
-                  <input type="number" min="140" max="210" defaultValue={user.mate_preferences?.height_range[1]} className="flex-1 p-3 rounded-xl bg-slate-50 text-center text-sm font-bold border-none" />
+              {renderField("收入要求", <select value={prefIncome} onChange={(e) => setPrefIncome(e.target.value)} className="w-full p-3 rounded-xl bg-slate-50 border-none text-sm font-bold"><option>不限</option><option>3000 以上</option><option>5000 以上</option><option>8000 以上</option><option>15000 以上</option></select>)}
+              {renderField("婚姻状态 (多选)", 
+                 <div className="flex flex-wrap gap-2">
+                  {['不限', '仅限未婚', '可接受离异未育'].map(tag => (
+                    <button key={tag} onClick={() => handleMultiSelect(prefMarriage, tag, setPrefMarriage)} className={`px-4 py-2 rounded-full text-[10px] font-bold border transition-all ${prefMarriage.includes(tag) ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-white border-slate-100 text-slate-400'}`}>{tag}</button>
+                  ))}
                 </div>
               )}
-            </div>
-            {renderField("学历要求", <select value={prefEdu} onChange={(e) => setPrefEdu(e.target.value)} className="w-full p-3 rounded-xl bg-slate-50 border-none text-sm font-bold"><option>不限</option><option>大专及以上</option><option>本科及以上</option><option>硕士及以上</option></select>)}
-            {renderField("地域要求 (可多选)", 
-              <div className="flex flex-wrap gap-2">
-                {['不限', '本市', '本省', '自定义'].map(tag => (
-                  <button key={tag} className={`px-4 py-2 rounded-full text-[10px] font-bold border transition-all ${user.mate_preferences?.location.includes(tag) ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-100 text-slate-400'}`}>{tag}</button>
-                ))}
+              <div className="grid grid-cols-2 gap-4">
+                {renderField("是否接受有孩", <select defaultValue={user.mate_preferences?.accept_children ? "可接受" : "不接受"} className="w-full p-3 rounded-xl bg-slate-50 border-none text-sm"><option>不限</option><option>可接受</option><option>不接受</option></select>)}
+                {renderField("吸烟要求", <select defaultValue={user.mate_preferences?.smoking} className="w-full p-3 rounded-xl bg-slate-50 border-none text-sm"><option>不限</option><option>不吸烟</option></select>)}
               </div>
-            )}
-            {renderField("收入要求", <select value={prefIncome} onChange={(e) => setPrefIncome(e.target.value)} className="w-full p-3 rounded-xl bg-slate-50 border-none text-sm font-bold"><option>不限</option><option>3000 以上</option><option>5000 以上</option><option>8000 以上</option><option>15000 以上</option></select>)}
-            {renderField("婚姻状态 (多选)", 
-               <div className="flex flex-wrap gap-2">
-                {['不限', '仅限未婚', '可接受离异未育'].map(tag => (
-                  <button key={tag} onClick={() => handleMultiSelect(prefMarriage, tag, setPrefMarriage)} className={`px-4 py-2 rounded-full text-[10px] font-bold border transition-all ${prefMarriage.includes(tag) ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-white border-slate-100 text-slate-400'}`}>{tag}</button>
-                ))}
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-4">
-              {renderField("是否接受有孩", <select defaultValue={user.mate_preferences?.accept_children ? "可接受" : "不接受"} className="w-full p-3 rounded-xl bg-slate-50 border-none text-sm"><option>不限</option><option>可接受</option><option>不接受</option></select>)}
-              {renderField("吸烟要求", <select defaultValue={user.mate_preferences?.smoking} className="w-full p-3 rounded-xl bg-slate-50 border-none text-sm"><option>不限</option><option>不吸烟</option></select>)}
+              {renderField("生育意向", <select defaultValue={user.mate_preferences?.childbearing_intention} className="w-full p-3 rounded-xl bg-slate-50 border-none text-sm"><option>不限</option><option>必须愿意生育</option></select>)}
             </div>
-            {renderField("生育意向", <select defaultValue={user.mate_preferences?.childbearing_intention} className="w-full p-3 rounded-xl bg-slate-50 border-none text-sm"><option>不限</option><option>必须愿意生育</option></select>)}
 
-            {/* Strictness Warning (3.3.3) */}
+            <div className="h-px bg-slate-100"></div>
+
+            {/* 择偶优先级排序大模块 - 移动至下方 */}
+            <section className="p-6 bg-rose-50/50 rounded-[2rem] border border-rose-100/50">
+              {renderSectionTitle("择偶优先级排序 (Top 10)", "系统将根据您的排序分配权重，第一位为最核心需求")}
+              <div className="space-y-3 mt-4">
+                {priorities.map((val, idx) => (
+                  <div key={idx} className="flex items-center gap-4 bg-white p-3 rounded-2xl border border-rose-100 shadow-sm transition-all hover:border-rose-300">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${val ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1">
+                      <select 
+                        value={val || ""} 
+                        onChange={(e) => handlePriorityChange(idx, e.target.value)}
+                        className={`w-full bg-transparent border-none text-xs font-black focus:ring-0 ${val ? 'text-slate-800' : 'text-slate-300'}`}
+                      >
+                        <option value="">{idx === 0 ? "点击选择最看重的条件..." : `优先级 ${idx + 1} (可选)...`}</option>
+                        {getAvailableOptions(idx).map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {val && (
+                      <button onClick={() => handlePriorityChange(idx, "")} className="text-slate-300 hover:text-rose-500 transition-colors px-2">
+                        <i className="fas fa-times-circle"></i>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Strictness Warning */}
             {isTooStrict && (
               <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 mt-6 flex gap-3 animate-in zoom-in-95">
                 <div className="text-amber-500 mt-0.5"><i className="fas fa-exclamation-triangle"></i></div>
