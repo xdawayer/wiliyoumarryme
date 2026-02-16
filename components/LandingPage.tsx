@@ -15,50 +15,29 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUserLogin, onAdminLogin }) 
     name: '',
     idCard: '',
     phone: '',
-    code: '',
     adminAccount: '',
     adminPassword: ''
   });
   const [error, setError] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
-
-  const handleSendCode = () => {
-    if (!formData.phone) {
-      setError('请先输入手机号');
-      return;
-    }
-    setCodeSent(true);
-    setTimeout(() => setCodeSent(false), 3000);
-  };
 
   const handleUserLogin = () => {
-    if (!formData.name || !formData.phone) {
-      setError('请填写姓名和手机号');
+    if (!formData.name || !formData.phone || !formData.idCard) {
+      setError('请完整填写姓名、手机号和身份证号');
       return;
     }
 
-    // 尝试匹配已有用户
-    const user = MOCK_USERS.find(u => u.name === formData.name || u.phone === formData.phone);
+    // 尝试匹配数据库内已有用户：三项必须全部一致
+    const user = MOCK_USERS.find(u => 
+      u.name === formData.name && 
+      u.phone === formData.phone && 
+      u.id_card === formData.idCard
+    );
     
     if (user) {
+      setError('');
       onUserLogin(user);
     } else {
-      // 允许直接登录：自动创建新用户记录
-      const newUser: User = {
-        id: Date.now().toString(),
-        user_code: `U${Math.floor(Math.random() * 1000000)}`,
-        name: formData.name,
-        id_card: formData.idCard || '4313************',
-        phone: formData.phone,
-        gender: Gender.MALE,
-        birth_date: '1998-01-01',
-        status: UserStatus.PENDING_PROFILE,
-        match_enabled: true,
-        credit_score: 100,
-        profile_completeness: 20,
-        village_name: '娄星区默认社区'
-      };
-      onUserLogin(newUser);
+      setError('未查找到匹配的嘉宾信息，请确保姓名、手机号、身份证号与登记时完全一致');
     }
   };
 
@@ -73,7 +52,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUserLogin, onAdminLogin }) 
   };
 
   const quickLoginUser = () => {
-    onUserLogin(MOCK_USERS[0]);
+    const testUser = MOCK_USERS[0];
+    onUserLogin(testUser);
   };
 
   const quickLoginAdmin = () => {
@@ -94,7 +74,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUserLogin, onAdminLogin }) 
             onClick={() => { setLoginMode('user'); setError(''); }}
             className={`flex-1 py-5 text-sm font-bold transition-all ${loginMode === 'user' ? 'text-rose-600 border-b-2 border-rose-600 bg-rose-50/30' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            用户登录
+            嘉宾登录
           </button>
           <button 
             onClick={() => { setLoginMode('admin'); setError(''); }}
@@ -106,64 +86,71 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUserLogin, onAdminLogin }) 
 
         <div className="p-8">
           {error && (
-            <div className="mb-6 p-4 bg-rose-50 border border-rose-100 text-rose-600 text-xs rounded-2xl flex items-center gap-3 animate-pulse">
-              <i className="fas fa-exclamation-circle text-base"></i>
-              {error}
+            <div className="mb-6 p-4 bg-rose-50 border border-rose-100 text-rose-600 text-[11px] leading-relaxed rounded-2xl flex items-start gap-3 animate-pulse">
+              <i className="fas fa-exclamation-circle text-base mt-0.5"></i>
+              <span>{error}</span>
             </div>
           )}
 
           {loginMode === 'user' ? (
             <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                <button 
-                  onClick={quickLoginUser}
-                  className="col-span-2 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-bold text-slate-500 hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
-                >
-                  <i className="fas fa-bolt text-rose-500"></i>
-                  使用测试账号一键登录 (李明)
-                </button>
-                <div className="col-span-2 h-px bg-slate-100 my-2"></div>
-              </div>
+              <button 
+                onClick={quickLoginUser}
+                className="w-full py-3.5 bg-rose-50 border border-rose-100 rounded-2xl text-[10px] font-black text-rose-600 hover:bg-rose-100 transition-colors flex items-center justify-center gap-2"
+              >
+                <i className="fas fa-bolt"></i>
+                测试账号一键登录
+              </button>
               
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">姓名</label>
-                <input 
-                  type="text" 
-                  className="w-full p-4 rounded-2xl bg-slate-50 border border-transparent focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 focus:outline-none transition-all text-sm font-medium"
-                  placeholder="请输入您的真实姓名"
-                  value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">手机号</label>
-                <div className="flex gap-2">
+              <div className="h-px bg-slate-100 my-2"></div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">真实姓名 <span className="text-rose-500">*</span></label>
+                  <input 
+                    type="text" 
+                    className="w-full p-4 rounded-2xl bg-slate-50 border border-transparent focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 focus:outline-none transition-all text-sm font-bold"
+                    placeholder="请输入姓名"
+                    value={formData.name}
+                    onChange={e => setFormData({...formData, name: e.target.value})}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">手机号 <span className="text-rose-500">*</span></label>
                   <input 
                     type="tel" 
-                    className="flex-1 p-4 rounded-2xl bg-slate-50 border border-transparent focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 focus:outline-none transition-all text-sm font-medium"
-                    placeholder="请输入手机号"
+                    className="w-full p-4 rounded-2xl bg-slate-50 border border-transparent focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 focus:outline-none transition-all text-sm font-bold"
+                    placeholder="请输入登录手机号"
                     value={formData.phone}
                     onChange={e => setFormData({...formData, phone: e.target.value})}
                   />
-                  <button 
-                    onClick={handleSendCode}
-                    disabled={codeSent}
-                    className={`px-5 py-2 rounded-2xl text-[10px] font-black uppercase transition-all ${codeSent ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                  >
-                    {codeSent ? '已发送' : '获取验证码'}
-                  </button>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">身份证号 <span className="text-rose-500">*</span></label>
+                  <input 
+                    type="text" 
+                    className="w-full p-4 rounded-2xl bg-slate-50 border border-transparent focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 focus:outline-none transition-all text-sm font-bold"
+                    placeholder="请输入18位身份证号"
+                    value={formData.idCard}
+                    onChange={e => setFormData({...formData, idCard: e.target.value})}
+                  />
                 </div>
               </div>
+
               <button 
                 onClick={handleUserLogin}
-                className="w-full py-5 bg-rose-600 text-white rounded-3xl font-black shadow-xl shadow-rose-200 hover:bg-rose-700 hover:-translate-y-1 transition-all active:translate-y-0 active:scale-95"
+                className="w-full py-5 bg-rose-600 text-white rounded-3xl font-black shadow-xl shadow-rose-200 hover:bg-rose-700 hover:-translate-y-1 transition-all active:translate-y-0 active:scale-95 flex items-center justify-center gap-2 mt-4"
               >
-                立即登录
+                <i className="fas fa-sign-in-alt"></i>
+                身份匹配并登录
               </button>
+              
               <div className="text-center mt-6">
                 <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
-                  提示：您可以直接输入任何姓名和手机号登录<br/>
-                  系统将自动为您在后台录入基本信息
+                  本平台仅限已完成线下实名采集的嘉宾登录<br/>
+                  请确保输入信息与登记时完全一致
                 </p>
               </div>
             </div>
@@ -171,9 +158,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUserLogin, onAdminLogin }) 
             <div className="space-y-5">
               <button 
                 onClick={quickLoginAdmin}
-                className="w-full py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[10px] font-bold text-slate-500 hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-indigo-50 border border-indigo-100 rounded-2xl text-[10px] font-black text-indigo-600 hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
               >
-                <i className="fas fa-shield-alt text-indigo-500"></i>
+                <i className="fas fa-shield-alt"></i>
                 超级管理员一键进入
               </button>
               <div className="h-px bg-slate-100 my-2"></div>
@@ -199,8 +186,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUserLogin, onAdminLogin }) 
               </div>
               <button 
                 onClick={handleAdminLogin}
-                className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black shadow-xl shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-1 transition-all active:translate-y-0 active:scale-95"
+                className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black shadow-xl shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-1 transition-all active:translate-y-0 active:scale-95 flex items-center justify-center gap-2"
               >
+                <i className="fas fa-lock"></i>
                 进入管理系统
               </button>
             </div>
