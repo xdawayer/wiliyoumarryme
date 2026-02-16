@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { MOCK_USERS, MOCK_PROFILES } from '../../services/mockData';
 import { AdminRole, UserStatus, User, UserProfile, Gender } from '../../types';
@@ -36,19 +35,63 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGender, setFilterGender] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterRegion, setFilterRegion] = useState<string>('all');
+  const [filterAgeRange, setFilterAgeRange] = useState<string>('all');
+  const [filterEdu, setFilterEdu] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
 
+  // 格式化所属区域显示 - 剥离默认前缀并截断详细地点（只保留到村/社区/居委会）
+  const formatVillage = (villageName?: string) => {
+    if (!villageName) return '未登记';
+    let cleaned = villageName.replace('娄底市', '').replace('娄星区', '').trim();
+    
+    // 自动截断村/社区/居委会之后的详细信息（如：某某组、某某号）
+    const keywords = ['村', '社区', '居委会'];
+    for (const keyword of keywords) {
+      const index = cleaned.indexOf(keyword);
+      if (index !== -1) {
+        return cleaned.substring(0, index + keyword.length);
+      }
+    }
+    return cleaned;
+  };
+
+  // 提取库内所有唯一区域供筛选
+  const uniqueRegions = useMemo(() => {
+    const regions = new Set<string>();
+    MOCK_USERS.forEach(u => {
+      const formatted = formatVillage(u.village_name);
+      if (formatted && formatted !== '未登记') regions.add(formatted);
+    });
+    return Array.from(regions).sort();
+  }, []);
+
   const filteredUsers = useMemo(() => {
     return MOCK_USERS.filter(user => {
+      const profile = MOCK_PROFILES[user.id];
+      const age = 2026 - parseInt(user.birth_date.split('-')[0]);
+
       const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                            user.user_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            user.phone.includes(searchTerm);
       const matchesGender = filterGender === 'all' || user.gender.toString() === filterGender;
       const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
-      return matchesSearch && matchesGender && matchesStatus;
+      const matchesRegion = filterRegion === 'all' || formatVillage(user.village_name) === filterRegion;
+      const matchesEdu = filterEdu === 'all' || (profile?.education || '').includes(filterEdu);
+      
+      let matchesAge = true;
+      if (filterAgeRange !== 'all') {
+        if (filterAgeRange === '18-25') matchesAge = age >= 18 && age <= 25;
+        else if (filterAgeRange === '26-30') matchesAge = age >= 26 && age <= 30;
+        else if (filterAgeRange === '31-35') matchesAge = age >= 31 && age <= 35;
+        else if (filterAgeRange === '36-40') matchesAge = age >= 36 && age <= 40;
+        else if (filterAgeRange === '41+') matchesAge = age >= 41;
+      }
+
+      return matchesSearch && matchesGender && matchesStatus && matchesRegion && matchesEdu && matchesAge;
     });
-  }, [searchTerm, filterGender, filterStatus]);
+  }, [searchTerm, filterGender, filterStatus, filterRegion, filterAgeRange, filterEdu]);
 
   const paginatedUsers = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -125,41 +168,65 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
 
       {activeTab === 'list' ? (
         <div className="space-y-4">
-            {/* 筛选工具栏 - 已扩展 */}
-            <div className="bg-white px-6 py-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center justify-between gap-4 overflow-x-auto no-scrollbar">
-              <div className="flex items-center gap-4 flex-1">
+            {/* 增强后的筛选工具栏 */}
+            <div className="bg-white px-6 py-4 rounded-[2rem] border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4 overflow-x-auto no-scrollbar">
+              <div className="flex flex-wrap items-center gap-4 flex-1">
                 <div className="relative w-64 flex-shrink-0">
                   <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
                   <input type="text" placeholder="搜索姓名/编号/手机号" className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border-none text-[12px] font-bold focus:ring-2 focus:ring-indigo-500 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
+                
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <select value={filterGender} onChange={(e) => setFilterGender(e.target.value)} className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-[11px] font-bold text-slate-600 cursor-pointer focus:ring-2 focus:ring-indigo-500 outline-none">
                     <option value="all">性别不限</option>
                     <option value="1">男嘉宾</option>
                     <option value="2">女嘉宾</option>
                   </select>
+
                   <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-[11px] font-bold text-slate-600 cursor-pointer focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <option value="all">全部状态</option>
+                    <option value="all">状态不限</option>
                     <option value={UserStatus.MATCHING}>匹配中</option>
                     <option value={UserStatus.PENDING_PROFILE}>待完善资料</option>
                     <option value={UserStatus.MEETING}>见面安排中</option>
                     <option value={UserStatus.PAUSED}>已暂停</option>
+                  </select>
+
+                  <select value={filterRegion} onChange={(e) => setFilterRegion(e.target.value)} className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-[11px] font-bold text-slate-600 cursor-pointer focus:ring-2 focus:ring-indigo-500 outline-none max-w-[140px]">
+                    <option value="all">所属区域</option>
+                    {uniqueRegions.map(reg => <option key={reg} value={reg}>{reg}</option>)}
+                  </select>
+
+                  <select value={filterAgeRange} onChange={(e) => setFilterAgeRange(e.target.value)} className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-[11px] font-bold text-slate-600 cursor-pointer focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="all">年龄区间</option>
+                    <option value="18-25">18-25岁</option>
+                    <option value="26-30">26-30岁</option>
+                    <option value="31-35">31-35岁</option>
+                    <option value="36-40">36-40岁</option>
+                    <option value="41+">41岁以上</option>
+                  </select>
+
+                  <select value={filterEdu} onChange={(e) => setFilterEdu(e.target.value)} className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-[11px] font-bold text-slate-600 cursor-pointer focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="all">学历要求</option>
+                    <option value="专科">专科</option>
+                    <option value="本科">本科</option>
+                    <option value="硕士">硕士</option>
+                    <option value="博士">博士</option>
                   </select>
                 </div>
               </div>
             </div>
 
             <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-                <table className="w-full text-left">
+                <table className="w-full text-left table-fixed">
                     <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase font-black tracking-widest border-b border-slate-100">
                         <tr>
-                        <th className="px-6 py-5">#</th>
-                        <th className="px-6 py-5">嘉宾/性别</th>
-                        <th className="px-6 py-5">核心画像</th>
-                        <th className="px-6 py-5">资料完成度</th>
-                        <th className="px-6 py-5">所属区域</th>
-                        <th className="px-6 py-5">状态</th>
-                        <th className="px-6 py-5 text-right">操作</th>
+                        <th className="px-6 py-5 w-20">序号</th>
+                        <th className="px-6 py-5 w-48">嘉宾/性别</th>
+                        <th className="px-6 py-5 w-64">核心画像</th>
+                        <th className="px-6 py-5 w-80">所属区域</th>
+                        <th className="px-6 py-5 w-32 text-center">资料进度</th>
+                        <th className="px-6 py-5 w-40 text-center">状态</th>
+                        <th className="px-6 py-5 text-right w-48">操作</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -168,31 +235,40 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
                             const age = 2026 - parseInt(user.birth_date.split('-')[0]);
                             return (
                                 <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
-                                    <td className="px-6 py-6 text-slate-400 font-mono text-xs">{((currentPage-1)*pageSize + index + 1).toString().padStart(3, '0')}</td>
+                                    <td className="px-6 py-6 text-slate-400 font-mono text-xs truncate">
+                                      {((currentPage-1)*pageSize + index + 1).toString().padStart(4, '0')}
+                                    </td>
                                     <td className="px-6 py-6">
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 truncate">
                                         <span className="font-black text-slate-800">{user.name}</span>
-                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black ${user.gender === 1 ? 'bg-blue-100 text-blue-600' : 'bg-rose-100 text-rose-600'}`}>{user.gender === 1 ? '男' : '女'}</span>
+                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black shrink-0 ${user.gender === 1 ? 'bg-blue-100 text-blue-600' : 'bg-rose-100 text-rose-600'}`}>{user.gender === 1 ? '男' : '女'}</span>
                                       </div>
                                     </td>
-                                    <td className="px-6 py-6 text-[11px] text-slate-500 font-bold">
+                                    <td className="px-6 py-6 text-[11px] text-slate-500 font-bold truncate">
                                       {age}岁 • {profile?.education} • {profile?.career_category}
                                     </td>
-                                    <td className="px-6 py-6">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-12 bg-slate-100 h-1 rounded-full overflow-hidden">
-                                          <div className={`bg-emerald-500 h-full`} style={{width: `${user.profile_completeness}%`}}></div>
-                                        </div>
-                                        <span className="text-[10px] font-black text-slate-400">{user.profile_completeness}%</span>
+                                    <td className="px-6 py-6 text-[11px] text-slate-500 font-bold">
+                                      <div className="flex items-center gap-1.5 truncate">
+                                        <i className="fas fa-map-marker-alt text-slate-300 text-[9px]"></i>
+                                        {formatVillage(user.village_name)}
                                       </div>
                                     </td>
-                                    <td className="px-6 py-6 text-[11px] text-slate-500 font-bold">{user.village_name}</td>
                                     <td className="px-6 py-6">
-                                      <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${getStatusDisplay(user.status).class}`}>{getStatusDisplay(user.status).label}</span>
+                                      <div className="flex items-center justify-center gap-2">
+                                        <div className="w-10 bg-slate-100 h-1 rounded-full overflow-hidden shrink-0">
+                                          <div className={`bg-emerald-500 h-full`} style={{width: `${user.profile_completeness}%`}}></div>
+                                        </div>
+                                        <span className="text-[9px] font-black text-slate-400 shrink-0">{user.profile_completeness}%</span>
+                                      </div>
                                     </td>
-                                    <td className="px-6 py-6 text-right space-x-2">
-                                      <button onClick={() => setSelectedUserForDetail(user)} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black hover:bg-slate-200 transition-all">查看</button>
-                                      <button onClick={() => handleQuickMatch(user)} className="px-4 py-2 bg-rose-600 text-white rounded-xl text-[10px] font-black shadow-lg shadow-rose-100 hover:bg-rose-700 transition-all active:scale-95">智能匹配</button>
+                                    <td className="px-6 py-6 text-center">
+                                      <span className={`inline-block px-2 py-1 rounded-lg text-[10px] font-black whitespace-nowrap ${getStatusDisplay(user.status).class}`}>{getStatusDisplay(user.status).label}</span>
+                                    </td>
+                                    <td className="px-6 py-6 text-right">
+                                      <div className="flex justify-end gap-1.5">
+                                        <button onClick={() => setSelectedUserForDetail(user)} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black hover:bg-slate-200 transition-all shrink-0">查看</button>
+                                        <button onClick={() => handleQuickMatch(user)} className="px-3 py-1.5 bg-rose-600 text-white rounded-xl text-[10px] font-black shadow-lg shadow-rose-100 hover:bg-rose-700 transition-all shrink-0 active:scale-95">智能匹配</button>
+                                      </div>
                                     </td>
                                 </tr>
                             );
@@ -230,11 +306,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
         </div>
       )}
 
-      {/* 嘉宾全量资料详情窗 (点击查看后弹出) */}
+      {/* 嘉宾资料详情窗 */}
       {selectedUserForDetail && (
         <div className="fixed inset-0 z-[160] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300">
            <div className="bg-white w-full max-w-5xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]">
-              {/* 左侧形象展示 */}
               <div className="w-full md:w-1/3 bg-slate-100 relative">
                  <img src={MOCK_PROFILES[selectedUserForDetail.id]?.photos[0]} className="w-full h-full object-cover" alt="" />
                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
@@ -245,7 +320,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
                           {selectedUserForDetail.gender === 1 ? '男嘉宾' : '女嘉宾'}
                        </span>
                     </div>
-                    <p className="text-sm font-bold opacity-80">{selectedUserForDetail.village_name} • {MOCK_PROFILES[selectedUserForDetail.id]?.city.split('-')[2]}</p>
+                    <p className="text-sm font-bold opacity-80">{formatVillage(selectedUserForDetail.village_name)}</p>
                     <div className="mt-6 space-y-3">
                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest opacity-60">
                           <span>资料完善度</span>
@@ -258,20 +333,18 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
                  </div>
               </div>
 
-              {/* 右侧详细资料滚动区 */}
               <div className="flex-1 flex flex-col bg-white">
                  <div className="p-8 border-b flex justify-between items-center">
                     <div>
                        <h4 className="text-lg font-black text-slate-800">全量画像数据资产</h4>
-                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Louxing Matchmaking Archive • ID: {selectedUserForDetail.user_code}</p>
+                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">ID: {selectedUserForDetail.user_code}</p>
                     </div>
-                    <button onClick={() => setSelectedUserForDetail(null)} className="w-10 h-10 rounded-full hover:bg-slate-50 text-slate-300 hover:text-rose-500 transition-all">
+                    <button onClick={() => setSelectedUserForDetail(null)} className="w-10 h-10 rounded-full hover:bg-slate-50 text-slate-300 hover:text-rose-500 transition-all flex items-center justify-center active:scale-90">
                        <i className="fas fa-times-circle text-2xl"></i>
                     </button>
                  </div>
 
                  <div className="flex-1 overflow-y-auto p-8 space-y-10 no-scrollbar">
-                    {/* 第一层：基础必填 */}
                     <section className="space-y-4">
                        <h5 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] flex items-center gap-2">
                           <span className="w-1 h-3 bg-indigo-600 rounded-full"></span>
@@ -281,11 +354,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
                           {[
                             {l: '年龄', v: `${2026 - parseInt(selectedUserForDetail.birth_date.split('-')[0])}岁`},
                             {l: '身高', v: `${MOCK_PROFILES[selectedUserForDetail.id]?.height}cm`},
-                            {l: '体重', v: `${MOCK_PROFILES[selectedUserForDetail.id]?.weight}kg`},
                             {l: '学历', v: MOCK_PROFILES[selectedUserForDetail.id]?.education},
-                            {l: '婚姻状况', v: MOCK_PROFILES[selectedUserForDetail.id]?.marriage_status},
-                            {l: '户籍地', v: MOCK_PROFILES[selectedUserForDetail.id]?.hometown.split('-')[2]},
                             {l: '职业类别', v: MOCK_PROFILES[selectedUserForDetail.id]?.career_category},
+                            {l: '所属村镇', v: formatVillage(selectedUserForDetail.village_name)},
                             {l: '联系电话', v: selectedUserForDetail.phone}
                           ].map(i => (
                             <div key={i.l} className="p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
@@ -295,121 +366,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
                           ))}
                        </div>
                     </section>
-
-                    {/* 第二层：经济与生活重要 */}
-                    <section className="space-y-4">
-                       <h5 className="text-[10px] font-black text-amber-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                          <span className="w-1 h-3 bg-amber-600 rounded-full"></span>
-                          第二层：经济与生活规划
-                       </h5>
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="grid grid-cols-2 gap-3">
-                             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
-                                <p className="text-[9px] font-black text-slate-400 mb-1">月收入区间</p>
-                                <p className="text-xs font-black text-slate-700">{MOCK_PROFILES[selectedUserForDetail.id]?.income_range}</p>
-                             </div>
-                             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
-                                <p className="text-[9px] font-black text-slate-400 mb-1">购房情况</p>
-                                <p className="text-xs font-black text-slate-700">{MOCK_PROFILES[selectedUserForDetail.id]?.has_house}</p>
-                             </div>
-                             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
-                                <p className="text-[9px] font-black text-slate-400 mb-1">购车情况</p>
-                                <p className="text-xs font-black text-slate-700">{MOCK_PROFILES[selectedUserForDetail.id]?.has_car}</p>
-                             </div>
-                             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
-                                <p className="text-[9px] font-black text-slate-400 mb-1">生育意向</p>
-                                <p className="text-xs font-black text-slate-700">{MOCK_PROFILES[selectedUserForDetail.id]?.childbearing_intention}</p>
-                             </div>
-                          </div>
-                          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100/50 space-y-3">
-                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">家庭成员背景</p>
-                             <div className="flex flex-wrap gap-2">
-                                {MOCK_PROFILES[selectedUserForDetail.id]?.parent_situation.map(s => <span key={s} className="px-2 py-1 bg-white border border-slate-100 rounded-lg text-[10px] font-bold text-slate-600">{s}</span>)}
-                             </div>
-                             <p className="text-[11px] text-slate-500 leading-relaxed font-medium italic">"{MOCK_PROFILES[selectedUserForDetail.id]?.parent_details}"</p>
-                          </div>
-                       </div>
-                    </section>
-
-                    {/* 第三层：生活方式 */}
-                    <section className="space-y-4">
-                       <h5 className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                          <span className="w-1 h-3 bg-emerald-600 rounded-full"></span>
-                          第三层：三观与生活方式
-                       </h5>
-                       <div className="p-5 bg-slate-50 rounded-[2rem] border border-slate-100/50">
-                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                             <div className="space-y-1">
-                                <p className="text-[9px] font-black text-slate-400 uppercase">作息习惯</p>
-                                <p className="text-xs font-black text-slate-700">{MOCK_PROFILES[selectedUserForDetail.id]?.lifestyle.schedule}</p>
-                             </div>
-                             <div className="space-y-1">
-                                <p className="text-[9px] font-black text-slate-400 uppercase">饮食偏好</p>
-                                <p className="text-xs font-black text-slate-700">{MOCK_PROFILES[selectedUserForDetail.id]?.lifestyle.diet}</p>
-                             </div>
-                             <div className="space-y-1">
-                                <p className="text-[9px] font-black text-slate-400 uppercase">吸烟情况</p>
-                                <p className="text-xs font-black text-slate-700">{MOCK_PROFILES[selectedUserForDetail.id]?.lifestyle.smoking}</p>
-                             </div>
-                             <div className="space-y-1">
-                                <p className="text-[9px] font-black text-slate-400 uppercase">饮酒情况</p>
-                                <p className="text-xs font-black text-slate-700">{MOCK_PROFILES[selectedUserForDetail.id]?.lifestyle.drinking}</p>
-                             </div>
-                          </div>
-                          <div className="space-y-4">
-                             <div>
-                                <p className="text-[9px] font-black text-slate-400 uppercase mb-2">性格标签</p>
-                                <div className="flex flex-wrap gap-2">
-                                   {MOCK_PROFILES[selectedUserForDetail.id]?.personality_tags.map(t => <span key={t} className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-xl">{t}</span>)}
-                                </div>
-                             </div>
-                             <div>
-                                <p className="text-[9px] font-black text-slate-400 uppercase mb-2">兴趣爱好</p>
-                                <div className="flex flex-wrap gap-2">
-                                   {MOCK_PROFILES[selectedUserForDetail.id]?.hobbies.map(t => <span key={t} className="px-3 py-1 bg-white border border-slate-100 text-[10px] font-black rounded-xl text-slate-500">{t}</span>)}
-                                </div>
-                             </div>
-                          </div>
-                       </div>
-                    </section>
-
-                    {/* 择偶标准 */}
-                    <section className="space-y-4">
-                       <h5 className="text-[10px] font-black text-rose-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                          <span className="w-1 h-3 bg-rose-600 rounded-full"></span>
-                          择偶硬性标准
-                       </h5>
-                       <div className="bg-rose-50/30 p-6 rounded-[2rem] border border-rose-100/30 grid grid-cols-2 md:grid-cols-3 gap-6">
-                          <div className="space-y-1">
-                             <p className="text-[9px] font-black text-rose-400 uppercase">年龄要求</p>
-                             <p className="text-xs font-black text-slate-700">{selectedUserForDetail.mate_preferences?.age_range[0]}-{selectedUserForDetail.mate_preferences?.age_range[1]} 岁</p>
-                          </div>
-                          <div className="space-y-1">
-                             <p className="text-[9px] font-black text-rose-400 uppercase">身高要求</p>
-                             <p className="text-xs font-black text-slate-700">{selectedUserForDetail.mate_preferences?.height_range[0]}-{selectedUserForDetail.mate_preferences?.height_range[1]} cm</p>
-                          </div>
-                          <div className="space-y-1">
-                             <p className="text-[9px] font-black text-rose-400 uppercase">学历要求</p>
-                             <p className="text-xs font-black text-slate-700">{selectedUserForDetail.mate_preferences?.education}</p>
-                          </div>
-                          <div className="space-y-1">
-                             <p className="text-[9px] font-black text-rose-400 uppercase">月收要求</p>
-                             <p className="text-xs font-black text-slate-700">{selectedUserForDetail.mate_preferences?.income}</p>
-                          </div>
-                          <div className="space-y-1">
-                             <p className="text-[9px] font-black text-rose-400 uppercase">婚姻要求</p>
-                             <p className="text-xs font-black text-slate-700">{selectedUserForDetail.mate_preferences?.marriage_status.join('/')}</p>
-                          </div>
-                          <div className="space-y-1">
-                             <p className="text-[9px] font-black text-rose-400 uppercase">接受有孩</p>
-                             <p className="text-xs font-black text-slate-700">{selectedUserForDetail.mate_preferences?.accept_children ? '接受' : '不接受'}</p>
-                          </div>
-                       </div>
-                    </section>
                  </div>
                  
                  <div className="p-8 border-t bg-slate-50 flex justify-end gap-3">
-                    <button onClick={() => setSelectedUserForDetail(null)} className="px-8 py-3 bg-white border border-slate-200 text-slate-500 rounded-2xl text-[11px] font-black hover:bg-slate-50 transition-all">返回列表</button>
+                    <button onClick={() => setSelectedUserForDetail(null)} className="px-8 py-3 bg-white border border-slate-200 text-slate-500 rounded-2xl text-[11px] font-black hover:bg-slate-50 transition-all active:scale-95">返回列表</button>
                     <button onClick={() => { setSelectedUserForDetail(null); handleQuickMatch(selectedUserForDetail); }} className="px-8 py-3 bg-rose-600 text-white rounded-2xl text-[11px] font-black shadow-xl shadow-rose-100 hover:bg-rose-700 transition-all active:scale-95">为此嘉宾智能匹配</button>
                  </div>
               </div>
@@ -417,12 +377,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
         </div>
       )}
 
-      {/* 智能匹配结果深度优化弹窗 */}
+      {/* 智能匹配结果 */}
       {matchingResults && (
         <div className="fixed inset-0 z-[170] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="bg-slate-50 w-full max-w-5xl max-h-[90vh] rounded-[4rem] shadow-2xl flex flex-col overflow-hidden border border-white/20">
             <div className="p-10 bg-gradient-to-r from-rose-600 to-rose-500 text-white flex justify-between items-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-10 opacity-10 scale-[2]"><i className="fas fa-bolt text-8xl"></i></div>
               <div className="relative z-10 flex items-center gap-6">
                 <div className="w-20 h-20 rounded-3xl bg-white/20 backdrop-blur-md flex items-center justify-center text-3xl font-black border border-white/20">
                   <i className="fas fa-magic animate-pulse"></i>
@@ -432,7 +391,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
                   <p className="text-sm opacity-80 mt-1 font-bold">针对嘉宾 {matchingResults.user.name} 的库内全局检索已完成</p>
                 </div>
               </div>
-              <button onClick={() => setMatchingResults(null)} className="w-12 h-12 rounded-full hover:bg-white/10 flex items-center justify-center text-2xl transition-all relative z-10"><i className="fas fa-times"></i></button>
+              <button onClick={() => setMatchingResults(null)} className="w-12 h-12 rounded-full hover:bg-white/10 flex items-center justify-center text-2xl transition-all relative z-10 active:scale-90"><i className="fas fa-times"></i></button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-10 space-y-8 no-scrollbar">
@@ -455,24 +414,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
                         <p className="text-[10px] text-slate-400 font-black mt-1 uppercase">{res.age}岁 • {res.edu} • {res.job}</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
-                       {[
-                         {l: '性格兼容', v: res.dimensions.personality, c: 'bg-indigo-500'},
-                         {l: '生活习惯', v: res.dimensions.lifestyle, c: 'bg-amber-500'},
-                         {l: '价值观', v: res.dimensions.values, c: 'bg-emerald-500'}
-                       ].map(d => (
-                         <div key={d.l} className="space-y-1.5">
-                            <div className="flex justify-between text-[9px] font-black uppercase"><span className="text-slate-400">{d.l}</span><span className="text-slate-800">{d.v}%</span></div>
-                            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                               <div className={`${d.c} h-full transition-all duration-1000 delay-300`} style={{width: `${d.v}%`}}></div>
-                            </div>
-                         </div>
-                       ))}
-                    </div>
-                    <div className="p-5 bg-rose-50/50 rounded-2xl border border-rose-100/30">
-                       <p className="text-[10px] font-black text-rose-600 mb-2 uppercase flex items-center gap-1"><i className="fas fa-brain"></i> AI 推荐摘要</p>
-                       <p className="text-[11px] text-slate-600 leading-relaxed font-medium italic">"{res.summary}"</p>
-                    </div>
                     <button className="w-full py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black hover:bg-rose-600 transition-all active:scale-95 shadow-xl shadow-slate-100">下发匹配推荐</button>
                   </div>
                 ))}
@@ -482,7 +423,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
         </div>
       )}
 
-      {/* 资料核验详情浮窗 */}
+      {/* 审核详情 */}
       {reviewingItem && (
         <div className="fixed inset-0 z-[160] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row">
@@ -490,32 +431,26 @@ const UserManagement: React.FC<UserManagementProps> = ({ role }) => {
             <div className="flex-1 p-8 flex flex-col">
               <div className="flex justify-between items-start mb-6">
                 <div><h3 className="text-xl font-black text-slate-800">资料核验详情</h3><p className="text-xs text-slate-400 mt-1 uppercase font-bold">USER CODE: {reviewingItem.user.user_code}</p></div>
-                <button onClick={() => setReviewingItem(null)} className="text-slate-300 hover:text-slate-500"><i className="fas fa-times-circle text-xl"></i></button>
-              </div>
-              <div className="space-y-4 flex-1">
-                <div className="p-4 bg-indigo-50/20 border border-indigo-50 rounded-2xl">
-                   <p className="text-[10px] font-black text-indigo-600 mb-2 uppercase tracking-widest flex items-center gap-1"><i className="fas fa-robot"></i> 算法分析建议</p>
-                   <p className="text-[11px] text-slate-600 italic">"{reviewingItem.aiSuggestion || '该用户照片与库内实名信息匹配度高，建议予以通过。'}"</p>
-                </div>
+                <button onClick={() => setReviewingItem(null)} className="text-slate-300 hover:text-slate-500 flex items-center justify-center active:scale-90"><i className="fas fa-times-circle text-xl"></i></button>
               </div>
               <div className="pt-8 flex gap-3">
-                <button onClick={() => setRejectionModal(reviewingItem)} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl text-[11px] font-black hover:bg-rose-50 hover:text-rose-600 transition-all">驳回资料</button>
-                <button onClick={() => handleAuditApprove(reviewingItem.id)} className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl text-[11px] font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all">确认通过</button>
+                <button onClick={() => setRejectionModal(reviewingItem)} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl text-[11px] font-black hover:bg-rose-50 hover:text-rose-600 transition-all active:scale-95">驳回资料</button>
+                <button onClick={() => handleAuditApprove(reviewingItem.id)} className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl text-[11px] font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">确认通过</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 驳回原因模态框 */}
+      {/* 驳回原因 */}
       {rejectionModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm animate-in zoom-in-95 duration-200">
            <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl">
               <h4 className="text-lg font-black text-slate-800 mb-4">标注驳回理由</h4>
               <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="说明原因，将直接推送到嘉宾端..." className="w-full p-4 rounded-2xl bg-slate-50 border-none text-xs h-32 resize-none focus:ring-2 focus:ring-rose-500 font-medium" />
               <div className="flex gap-3 mt-6">
-                 <button onClick={() => setRejectionModal(null)} className="flex-1 py-3 text-slate-400 font-bold text-xs">取消</button>
-                 <button onClick={handleAuditReject} className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-black text-xs">确认并驳回</button>
+                 <button onClick={() => setRejectionModal(null)} className="flex-1 py-3 text-slate-400 font-bold text-xs active:scale-95">取消</button>
+                 <button onClick={handleAuditReject} className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-black text-xs active:scale-95">确认并驳回</button>
               </div>
            </div>
         </div>
